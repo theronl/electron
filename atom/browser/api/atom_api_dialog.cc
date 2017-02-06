@@ -47,6 +47,8 @@ void ShowMessageBox(int type,
                     const std::string& title,
                     const std::string& message,
                     const std::string& detail,
+                    const std::string& checkbox_title,
+                    bool checkbox_checked,
                     const gfx::ImageSkia& icon,
                     atom::NativeWindow* window,
                     mate::Arguments* args) {
@@ -56,8 +58,8 @@ void ShowMessageBox(int type,
                                                         peek,
                                                         &callback)) {
     atom::ShowMessageBox(window, (atom::MessageBoxType)type, buttons,
-                         default_id, cancel_id, options, title,
-                         message, detail, icon, callback);
+                         default_id, cancel_id, options, title, message, detail,
+                         checkbox_title, checkbox_checked, icon, callback);
   } else {
     int chosen = atom::ShowMessageBox(window, (atom::MessageBoxType)type,
                                       buttons, default_id, cancel_id,
