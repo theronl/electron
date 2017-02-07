@@ -84,7 +84,8 @@ void ShowOpenDialog(const std::string& title,
   } else {
     std::vector<base::FilePath> paths;
     if (file_dialog::ShowOpenDialog(window, title, button_label, default_path,
-                                    filters, properties, resolvesAliases, &paths))
+                                    filters, properties, resolvesAliases,
+                                    &paths))
       args->Return(paths);
   }
 }
