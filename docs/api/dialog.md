@@ -35,6 +35,8 @@ The `dialog` module has the following methods:
   * `properties` String[] - (optional) - Contains which features the dialog should use, can
     contain `openFile`, `openDirectory`, `multiSelections`, `createDirectory`
     and `showHiddenFiles`.
+  * `resolvesAliases` Boolean (optional) - Whether to resolve symlinks to their target path
+    or maintain the selected path.  Defaults to `true`.  macOS only.
 * `callback` Function (optional)
   * `filePaths` String[] - An array of file paths chosen by the user
 
