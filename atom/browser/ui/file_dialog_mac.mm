@@ -123,9 +123,11 @@ bool ShowOpenDialog(atom::NativeWindow* parent_window,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
+                    bool resolvesAliases,
                     std::vector<base::FilePath>* paths) {
   DCHECK(paths);
   NSOpenPanel* dialog = [NSOpenPanel openPanel];
+  dialog.resolvesAliases = resolvesAliases;
 
   SetupDialog(dialog, title, button_label, default_path, filters);
   SetupDialogForProperties(dialog, properties);
@@ -144,8 +146,10 @@ void ShowOpenDialog(atom::NativeWindow* parent_window,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
+                    bool resolvesAliases,
                     const OpenDialogCallback& c) {
   NSOpenPanel* dialog = [NSOpenPanel openPanel];
+  dialog.resolvesAliases = resolvesAliases;
 
   SetupDialog(dialog, title, button_label, default_path, filters);
   SetupDialogForProperties(dialog, properties);

@@ -168,7 +168,7 @@ void RunOpenDialogInNewThread(const RunState& run_state,
                               const OpenDialogCallback& callback) {
   std::vector<base::FilePath> paths;
   bool result = ShowOpenDialog(parent, title, button_label, default_path,
-                               filters, properties, &paths);
+                               filters, properties, true, &paths);
   run_state.ui_message_loop->PostTask(FROM_HERE,
                                       base::Bind(callback, result, paths));
   run_state.ui_message_loop->DeleteSoon(FROM_HERE, run_state.dialog_thread);
@@ -197,6 +197,7 @@ bool ShowOpenDialog(atom::NativeWindow* parent_window,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
+                    bool resolvesAliases,
                     std::vector<base::FilePath>* paths) {
   int options = FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST;
   if (properties & FILE_DIALOG_OPEN_DIRECTORY)
@@ -247,6 +248,7 @@ void ShowOpenDialog(atom::NativeWindow* parent,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
+                    bool resolvesAliases,
                     const OpenDialogCallback& callback) {
   RunState run_state;
   if (!CreateDialogThread(&run_state)) {

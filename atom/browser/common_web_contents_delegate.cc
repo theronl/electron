@@ -450,7 +450,7 @@ void CommonWebContentsDelegate::DevToolsAddFileSystem(
     std::vector<base::FilePath> paths;
     int flag = file_dialog::FILE_DIALOG_OPEN_DIRECTORY;
     if (!file_dialog::ShowOpenDialog(owner_window(), "", "", default_path,
-                                     filters, flag, &paths))
+                                     filters, flag, true, &paths))
       return;
 
     path = paths[0];
