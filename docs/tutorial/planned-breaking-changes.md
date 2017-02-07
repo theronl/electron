@@ -69,6 +69,13 @@ nativeImage.toPNG()
 nativeImage.toJpeg()
 // Replace with
 nativeImage.toJPEG()
+
+// Deprecated
+nativeImage.createFromBuffer(buffer, 1.0)
+// Replace with
+nativeImage.createFromBuffer(buffer, {
+  scaleFactor: 1.0
+})
 ```
 
 ## `process`
@@ -79,6 +86,10 @@ process.versions['atom-shell']
 // Replace with
 process.versions.electron
 ```
+
+* `process.versions.electron` and `process.version.chrome` will be made
+  read-only properties for consistency with the other `process.versions`
+  properties set by Node.
 
 ## `Tray`
 
@@ -117,6 +128,16 @@ webContents.setVisualZoomLevelLimits(1, 2)
 webFrame.setZoomLevelLimits(1, 2)
 // Replace with
 webFrame.setVisualZoomLevelLimits(1, 2)
+
+// Deprecated
+webFrame.registerURLSchemeAsSecure('app')
+// Replace with
+protocol.registerStandardSchemes(['app'], {secure: true})
+
+// Deprecated
+webFrame.registerURLSchemeAsPrivileged('app', {secure: true})
+// Replace with
+protocol.registerStandardSchemes(['app'], {secure: true})
 ```
 
 ## `<webview>`

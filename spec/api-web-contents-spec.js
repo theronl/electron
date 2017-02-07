@@ -4,7 +4,7 @@ const assert = require('assert')
 const path = require('path')
 const {closeWindow} = require('./window-helpers')
 
-const {remote} = require('electron')
+const {ipcRenderer, remote} = require('electron')
 const {BrowserWindow, webContents, ipcMain} = remote
 
 const isCi = remote.getGlobal('isCi')
@@ -98,6 +98,106 @@ describe('webContents module', function () {
     })
   })
 
+  describe('before-input-event event', () => {
+    it('can prevent document keyboard events', (done) => {
+      w.loadURL('file://' + path.join(__dirname, 'fixtures', 'pages', 'key-events.html'))
+      w.webContents.once('did-finish-load', () => {
+        ipcMain.once('keydown', (event, key) => {
+          assert.equal(key, 'b')
+          done()
+        })
+
+        ipcRenderer.send('prevent-next-input-event', 'a', w.webContents.id)
+        w.webContents.sendInputEvent({type: 'keyDown', keyCode: 'a'})
+        w.webContents.sendInputEvent({type: 'keyDown', keyCode: 'b'})
+      })
+    })
+
+    it('has the correct properties', (done) => {
+      w.loadURL('file://' + path.join(__dirname, 'fixtures', 'pages', 'base-page.html'))
+      w.webContents.once('did-finish-load', () => {
+        const testBeforeInput = (opts) => {
+          return new Promise((resolve, reject) => {
+            w.webContents.once('before-input-event', (event, input) => {
+              assert.equal(input.type, opts.type)
+              assert.equal(input.key, opts.key)
+              assert.equal(input.code, opts.code)
+              assert.equal(input.isAutoRepeat, opts.isAutoRepeat)
+              assert.equal(input.shift, opts.shift)
+              assert.equal(input.control, opts.control)
+              assert.equal(input.alt, opts.alt)
+              assert.equal(input.meta, opts.meta)
+              resolve()
+            })
+
+            const modifiers = []
+            if (opts.shift) modifiers.push('shift')
+            if (opts.control) modifiers.push('control')
+            if (opts.alt) modifiers.push('alt')
+            if (opts.meta) modifiers.push('meta')
+            if (opts.isAutoRepeat) modifiers.push('isAutoRepeat')
+
+            w.webContents.sendInputEvent({
+              type: opts.type,
+              keyCode: opts.keyCode,
+              modifiers: modifiers
+            })
+          })
+        }
+
+        Promise.resolve().then(() => {
+          return testBeforeInput({
+            type: 'keyDown',
+            key: 'A',
+            code: 'KeyA',
+            keyCode: 'a',
+            shift: true,
+            control: true,
+            alt: true,
+            meta: true,
+            isAutoRepeat: true
+          })
+        }).then(() => {
+          return testBeforeInput({
+            type: 'keyUp',
+            key: '.',
+            code: 'Period',
+            keyCode: '.',
+            shift: false,
+            control: true,
+            alt: true,
+            meta: false,
+            isAutoRepeat: false
+          })
+        }).then(() => {
+          return testBeforeInput({
+            type: 'keyUp',
+            key: '!',
+            code: 'Digit1',
+            keyCode: '1',
+            shift: true,
+            control: false,
+            alt: false,
+            meta: true,
+            isAutoRepeat: false
+          })
+        }).then(() => {
+          return testBeforeInput({
+            type: 'keyUp',
+            key: 'Tab',
+            code: 'Tab',
+            keyCode: 'Tab',
+            shift: false,
+            control: true,
+            alt: false,
+            meta: false,
+            isAutoRepeat: true
+          })
+        }).then(done).catch(done)
+      })
+    })
+  })
+
   describe('sendInputEvent(event)', function () {
     beforeEach(function (done) {
       w.loadURL('file://' + path.join(__dirname, 'fixtures', 'pages', 'key-events.html'))
@@ -171,6 +271,41 @@ describe('webContents module', function () {
       })
       w.webContents.sendInputEvent({type: 'keyDown', keyCode: 'Z'})
       w.webContents.sendInputEvent({type: 'char', keyCode: 'Z', modifiers: ['shift', 'ctrl']})
+    })
+  })
+
+  it('supports inserting CSS', function (done) {
+    w.loadURL('about:blank')
+    w.webContents.insertCSS('body { background-repeat: round; }')
+    w.webContents.executeJavaScript('window.getComputedStyle(document.body).getPropertyValue("background-repeat")', (result) => {
+      assert.equal(result, 'round')
+      done()
+    })
+  })
+
+  it('supports inspecting an element in the devtools', function (done) {
+    w.loadURL('about:blank')
+    w.webContents.once('devtools-opened', function () {
+      done()
+    })
+    w.webContents.inspectElement(10, 10)
+  })
+
+  describe('startDrag({file, icon})', () => {
+    it('throws errors for a missing file or a missing/empty icon', () => {
+      assert.throws(() => {
+        w.webContents.startDrag({icon: path.join(__dirname, 'fixtures', 'assets', 'logo.png')})
+      }, /Must specify either 'file' or 'files' option/)
+
+      assert.throws(() => {
+        w.webContents.startDrag({file: __filename})
+      }, /Must specify 'icon' option/)
+
+      if (process.platform === 'darwin') {
+        assert.throws(() => {
+          w.webContents.startDrag({file: __filename, icon: __filename})
+        }, /Must specify non-empty 'icon' option/)
+      }
     })
   })
 })

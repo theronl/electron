@@ -12,7 +12,6 @@
 #include "atom/browser/api/atom_api_web_contents.h"
 #include "atom/browser/atom_browser_context.h"
 #include "atom/browser/atom_browser_main_parts.h"
-#include "atom/browser/browser.h"
 #include "atom/browser/login_handler.h"
 #include "atom/browser/relauncher.h"
 #include "atom/common/atom_command_line.h"
@@ -298,6 +297,8 @@ struct Converter<Browser::LoginItemSettings> {
 
     dict.Get("openAtLogin", &(out->open_at_login));
     dict.Get("openAsHidden", &(out->open_as_hidden));
+    dict.Get("path", &(out->path));
+    dict.Get("args", &(out->args));
     return true;
   }
 
@@ -312,8 +313,21 @@ struct Converter<Browser::LoginItemSettings> {
     return dict.GetHandle();
   }
 };
-}  // namespace mate
 
+template<>
+struct Converter<content::CertificateRequestResultType> {
+  static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val,
+                     content::CertificateRequestResultType* out) {
+    bool b;
+    if (!ConvertFromV8(isolate, val, &b))
+      return false;
+    *out = b ? content::CERTIFICATE_REQUEST_RESULT_TYPE_CONTINUE :
+               content::CERTIFICATE_REQUEST_RESULT_TYPE_CANCEL;
+    return true;
+  }
+};
+
+}  // namespace mate
 
 namespace atom {
 
@@ -378,9 +392,21 @@ void OnClientCertificateSelected(
     v8::Isolate* isolate,
     std::shared_ptr<content::ClientCertificateDelegate> delegate,
     mate::Arguments* args) {
+  if (args->Length() == 2) {
+    delegate->ContinueWithCertificate(nullptr);
+    return;
+  }
+
+  v8::Local<v8::Value> val;
+  args->GetNext(&val);
+  if (val->IsNull()) {
+    delegate->ContinueWithCertificate(nullptr);
+    return;
+  }
+
   mate::Dictionary cert_data;
-  if (!args->GetNext(&cert_data)) {
-    args->ThrowError();
+  if (!mate::ConvertFromV8(isolate, val, &cert_data)) {
+    args->ThrowError("Must pass valid certificate object.");
     return;
   }
 
@@ -532,7 +558,7 @@ void App::OnCreateWindow(
     const GURL& target_url,
     const std::string& frame_name,
     WindowOpenDisposition disposition,
-    const std::vector<base::string16>& features,
+    const std::vector<std::string>& features,
     const scoped_refptr<content::ResourceRequestBodyImpl>& body,
     int render_process_id,
     int render_frame_id) {
@@ -561,8 +587,8 @@ void App::AllowCertificateError(
     bool overridable,
     bool strict_enforcement,
     bool expired_previous_decision,
-    const base::Callback<void(bool)>& callback,
-    content::CertificateRequestResultType* request) {
+    const base::Callback<void(content::CertificateRequestResultType)>&
+        callback) {
   v8::Locker locker(isolate());
   v8::HandleScope handle_scope(isolate());
   bool prevent_default = Emit("certificate-error",
@@ -574,7 +600,7 @@ void App::AllowCertificateError(
 
   // Deny the certificate by default.
   if (!prevent_default)
-    *request = content::CERTIFICATE_REQUEST_RESULT_TYPE_DENY;
+    callback.Run(content::CERTIFICATE_REQUEST_RESULT_TYPE_DENY);
 }
 
 void App::SelectClientCertificate(
@@ -721,6 +747,12 @@ bool App::IsAccessibilitySupportEnabled() {
   return ax_state->IsAccessibleBrowser();
 }
 
+Browser::LoginItemSettings App::GetLoginItemSettings(mate::Arguments* args) {
+  Browser::LoginItemSettings options;
+  args->GetNext(&options);
+  return Browser::Get()->GetLoginItemSettings(options);
+}
+
 #if defined(USE_NSS_CERTS)
 void App::ImportCertificate(
     const base::DictionaryValue& options,
@@ -842,8 +874,7 @@ void App::BuildPrototype(
                  base::Bind(&Browser::RemoveAsDefaultProtocolClient, browser))
       .SetMethod("setBadgeCount", base::Bind(&Browser::SetBadgeCount, browser))
       .SetMethod("getBadgeCount", base::Bind(&Browser::GetBadgeCount, browser))
-      .SetMethod("getLoginItemSettings",
-                 base::Bind(&Browser::GetLoginItemSettings, browser))
+      .SetMethod("getLoginItemSettings", &App::GetLoginItemSettings)
       .SetMethod("setLoginItemSettings",
                  base::Bind(&Browser::SetLoginItemSettings, browser))
 #if defined(OS_MACOSX)

@@ -2,7 +2,7 @@
 
 > Control your application's event lifecycle.
 
-Process: [Main](../tutorial/quick-start.md#main-process)
+Process: [Main](../glossary.md#main-process)
 
 The following example shows how to quit the application when the last window is
 closed:
@@ -113,7 +113,7 @@ Returns:
 * `url` String
 
 Emitted when the user wants to open a URL with the application. Your application's
-`Info.plist` file must define the url scheme within the `CFBundleURLTypes` key, and 
+`Info.plist` file must define the url scheme within the `CFBundleURLTypes` key, and
 set `NSPrincipalClass` to `AtomApplication`.
 
 You should call `event.preventDefault()` if you want to handle this event.
@@ -189,7 +189,7 @@ Returns:
 
 * `event` Event
 * `webContents` [WebContents](web-contents.md)
-* `url` URL
+* `url` String
 * `error` String - The error code
 * `certificate` [Certificate](structures/certificate.md)
 * `callback` Function
@@ -222,12 +222,12 @@ Returns:
 * `url` URL
 * `certificateList` [Certificate[]](structures/certificate.md)
 * `callback` Function
-  * `certificate` [Certificate](structures/certificate.md)
+  * `certificate` [Certificate](structures/certificate.md) (optional)
 
 Emitted when a client certificate is requested.
 
 The `url` corresponds to the navigation entry requesting the client certificate
-and `callback` needs to be called with an entry filtered from the list. Using
+and `callback` can be called with an entry filtered from the list. Using
 `event.preventDefault()` prevents the application from using the first
 certificate from the store.
 
@@ -467,7 +467,7 @@ Clears the recent documents list.
   app to handle `electron://` links, call this method with `electron` as the
   parameter.
 * `path` String (optional) _Windows_ - Defaults to `process.execPath`
-* `args` String[] - (optional) _Windows_ - Defaults to an empty array
+* `args` String[] (optional) _Windows_ - Defaults to an empty array
 
 Returns `Boolean` - Whether the call succeeded.
 
@@ -491,7 +491,7 @@ The API uses the Windows Registry and LSSetDefaultHandlerForURLScheme internally
 
 * `protocol` String - The name of your protocol, without `://`.
 * `path` String (optional) _Windows_ - Defaults to `process.execPath`
-* `args` String[] - (optional) _Windows_ - Defaults to an empty array
+* `args` String[] (optional) _Windows_ - Defaults to an empty array
 
 Returns `Boolean` - Whether the call succeeded.
 
@@ -503,7 +503,7 @@ protocol (aka URI scheme). If so, it will remove the app as the default handler.
 
 * `protocol` String - The name of your protocol, without `://`.
 * `path` String (optional) _Windows_ - Defaults to `process.execPath`
-* `args` String[] - (optional) _Windows_ - Defaults to an empty array
+* `args` String[] (optional) _Windows_ - Defaults to an empty array
 
 Returns `Boolean`
 
@@ -747,8 +747,8 @@ badge.
 
 On macOS it shows on the dock icon. On Linux it only works for Unity launcher,
 
-**Note:** Unity launcher requires the exsistence of a `.desktop` file to work,
-for more information please read [Desktop Environment Integration][unity-requiremnt].
+**Note:** Unity launcher requires the existence of a `.desktop` file to work,
+for more information please read [Desktop Environment Integration][unity-requirement].
 
 ### `app.getBadgeCount()` _Linux_ _macOS_
 
@@ -758,7 +758,16 @@ Returns `Integer` - The current value displayed in the counter badge.
 
 Returns `Boolean` - Whether the current desktop environment is Unity launcher.
 
-### `app.getLoginItemSettings()` _macOS_ _Windows_
+### `app.getLoginItemSettings([options])` _macOS_ _Windows_
+
+* `options` Object (optional)
+  * `path` String (optional) _Windows_ - The executable path to compare against.
+    Defaults to `process.execPath`.
+  * `args` String[] (optional) _Windows_ - The command-line arguments to compare
+    against. Defaults to an empty array.
+
+If you provided `path` and `args` options to `app.setLoginItemSettings` then you
+need to pass the same arguments here for `openAtLogin` to be set correctly.
 
 Returns `Object`:
 
@@ -775,10 +784,9 @@ Returns `Object`:
   app should restore the windows that were open the last time the app was
   closed. This setting is only supported on macOS.
 
-**Note:** This API has no effect on
-[MAS builds][mas-builds].
+**Note:** This API has no effect on [MAS builds][mas-builds].
 
-### `app.setLoginItemSettings(settings)` _macOS_ _Windows_
+### `app.setLoginItemSettings(settings[, path, args])` _macOS_ _Windows_
 
 * `settings` Object
   * `openAtLogin` Boolean (optional) - `true` to open the app at login, `false` to remove
@@ -788,11 +796,34 @@ Returns `Object`:
     `app.getLoginItemStatus().wasOpenedAsHidden` should be checked when the app
     is opened to know the current value. This setting is only supported on
     macOS.
+  * `path` String (optional) _Windows_ - The executable to launch at login.
+    Defaults to `process.execPath`.
+  * `args` String[] (optional) _Windows_ - The command-line arguments to pass to
+    the executable. Defaults to an empty array. Take care to wrap paths in
+    quotes.
 
 Set the app's login item settings.
 
-**Note:** This API has no effect on
-[MAS builds][mas-builds].
+To work with Electron's `autoUpdater` on Windows, which uses [Squirrel][Squirrel-Windows],
+you'll want to set the launch path to Update.exe, and pass arguments that specify your
+application name. For example:
+
+``` javascript
+const appFolder = path.dirname(process.execPath)
+const updateExe = path.resolve(appFolder, '..', 'Update.exe')
+const exeName = path.basename(process.execPath)
+
+app.setLoginItemSettings({
+  openAtLogin: true,
+  path: updateExe,
+  args: [
+    '--processStart', `"${exeName}"`,
+    '--process-start-args', `"--hidden"`
+  ]
+})
+```
+
+**Note:** This API has no effect on [MAS builds][mas-builds].
 
 ### `app.isAccessibilitySupportEnabled()` _macOS_ _Windows_
 
@@ -845,7 +876,7 @@ When `informational` is passed, the dock icon will bounce for one second.
 However, the request remains active until either the application becomes active
 or the request is canceled.
 
-Returns an ID representing the request.
+Returns `Integer` an ID representing the request.
 
 ### `app.dock.cancelBounce(id)` _macOS_
 
@@ -891,7 +922,7 @@ Sets the application's [dock menu][dock-menu].
 
 ### `app.dock.setIcon(image)` _macOS_
 
-* `image` [NativeImage](native-image.md)
+* `image` ([NativeImage](native-image.md) | String)
 
 Sets the `image` associated with this dock icon.
 
@@ -902,7 +933,8 @@ Sets the `image` associated with this dock icon.
 [LSCopyDefaultHandlerForURLScheme]: https://developer.apple.com/library/mac/documentation/Carbon/Reference/LaunchServicesReference/#//apple_ref/c/func/LSCopyDefaultHandlerForURLScheme
 [handoff]: https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/Handoff/HandoffFundamentals/HandoffFundamentals.html
 [activity-type]: https://developer.apple.com/library/ios/documentation/Foundation/Reference/NSUserActivity_Class/index.html#//apple_ref/occ/instp/NSUserActivity/activityType
-[unity-requiremnt]: ../tutorial/desktop-environment-integration.md#unity-launcher-shortcuts-linux
+[unity-requirement]: ../tutorial/desktop-environment-integration.md#unity-launcher-shortcuts-linux
 [mas-builds]: ../tutorial/mac-app-store-submission-guide.md
+[Squirrel-Windows]: https://github.com/Squirrel/Squirrel.Windows
 [JumpListBeginListMSDN]: https://msdn.microsoft.com/en-us/library/windows/desktop/dd378398(v=vs.85).aspx
 [about-panel-options]: https://developer.apple.com/reference/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith?language=objc

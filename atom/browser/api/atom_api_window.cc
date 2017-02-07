@@ -17,6 +17,7 @@
 #include "atom/common/native_mate_converters/string16_converter.h"
 #include "atom/common/options_switches.h"
 #include "base/command_line.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_switches.h"
 #include "native_mate/constructor.h"
@@ -90,6 +91,13 @@ Window::Window(v8::Isolate* isolate, v8::Local<v8::Object> wrapper,
     if (options.Get("transparent", &transparent))
       web_preferences.Set("transparent", transparent);
 
+    // Offscreen windows are always created frameless.
+    bool offscreen;
+    if (web_preferences.Get("offscreen", &offscreen) && offscreen) {
+      auto window_options = const_cast<mate::Dictionary&>(options);
+      window_options.Set(options::kFrame, false);
+    }
+
     // Creates the WebContents used by BrowserWindow.
     web_contents = WebContents::Create(isolate, web_preferences);
   }
@@ -145,7 +153,7 @@ Window::~Window() {
 
   // Destroy the native window in next tick because the native code might be
   // iterating all windows.
-  base::MessageLoop::current()->DeleteSoon(FROM_HERE, window_.release());
+  base::ThreadTaskRunnerHandle::Get()->DeleteSoon(FROM_HERE, window_.release());
 }
 
 void Window::WillCloseWindow(bool* prevent_default) {
@@ -178,7 +186,8 @@ void Window::OnWindowClosed() {
   RemoveFromParentChildWindows();
 
   // Destroy the native class when window is closed.
-  base::MessageLoop::current()->PostTask(FROM_HERE, GetDestroyClosure());
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
+      FROM_HERE, GetDestroyClosure());
 }
 
 void Window::OnWindowBlur() {
@@ -503,8 +512,17 @@ bool Window::IsClosable() {
 
 void Window::SetAlwaysOnTop(bool top, mate::Arguments* args) {
   std::string level = "floating";
+  int relativeLevel = 0;
+  std::string error;
+
   args->GetNext(&level);
-  window_->SetAlwaysOnTop(top, level);
+  args->GetNext(&relativeLevel);
+
+  window_->SetAlwaysOnTop(top, level, relativeLevel, &error);
+
+  if (!error.empty()) {
+    args->ThrowError(error);
+  }
 }
 
 bool Window::IsAlwaysOnTop() {

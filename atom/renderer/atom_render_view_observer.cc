@@ -18,6 +18,7 @@
 #include "atom/renderer/atom_renderer_client.h"
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "content/public/renderer/render_view.h"
 #include "ipc/ipc_message_macros.h"
 #include "native_mate/dictionary.h"
@@ -75,6 +76,7 @@ AtomRenderViewObserver::AtomRenderViewObserver(
     content::RenderView* render_view,
     AtomRendererClient* renderer_client)
     : content::RenderViewObserver(render_view),
+      renderer_client_(renderer_client),
       document_created_(false) {
   // Initialise resource for directory listing.
   net::NetModule::SetResourceProvider(NetResourceProvider);
@@ -92,7 +94,7 @@ void AtomRenderViewObserver::EmitIPCEvent(blink::WebFrame* frame,
   v8::Isolate* isolate = blink::mainThreadIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  v8::Local<v8::Context> context = frame->mainWorldScriptContext();
+  v8::Local<v8::Context> context = renderer_client_->GetContext(frame, isolate);
   v8::Context::Scope context_scope(context);
 
   // Only emit IPC event for context with node integration.
@@ -102,6 +104,7 @@ void AtomRenderViewObserver::EmitIPCEvent(blink::WebFrame* frame,
 
   v8::Local<v8::Object> ipc;
   if (GetIPCObject(isolate, context, &ipc)) {
+    TRACE_EVENT0("devtools.timeline", "FunctionCall");
     auto args_vector = ListValueToVector(isolate, args);
     // Insert the Event object, event.sender is ipc.
     mate::Dictionary event = mate::Dictionary::CreateEmpty(isolate);
